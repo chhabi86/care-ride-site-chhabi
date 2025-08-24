@@ -2,6 +2,10 @@ package com.care.ride.web;
 
 import com.care.ride.domain.*;
 import com.care.ride.dto.BookingRequest;
+import com.care.ride.dto.ContactRequest;
+import com.care.ride.domain.Contact;
+import com.care.ride.repo.ContactRepo;
+import com.care.ride.service.EmailService;
 import com.care.ride.repo.*;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -16,10 +20,36 @@ import java.util.List;
 public class PublicController {
 	private final ServiceTypeRepo sRepo;
 	private final BookingRepo bRepo;
+	private final EmailService emailService;
+	private final ContactRepo contactRepo;
 
-	public PublicController(ServiceTypeRepo sRepo, BookingRepo bRepo){
+	public PublicController(ServiceTypeRepo sRepo, BookingRepo bRepo, EmailService emailService, ContactRepo contactRepo){
 		this.sRepo = sRepo;
 		this.bRepo = bRepo;
+		this.emailService = emailService;
+		this.contactRepo = contactRepo;
+	}
+	@PostMapping("/contact")
+	public ResponseEntity<?> contact(@RequestBody @Valid ContactRequest req) {
+		// Persist contact to DB
+		Contact c = new Contact();
+		c.setName(req.getName());
+		c.setEmail(req.getEmail());
+		c.setPhone(req.getPhone());
+		c.setReason(req.getReason());
+		c.setMessage(req.getMessage());
+		var saved = contactRepo.save(c);
+
+		// Compose email body
+		String subject = "New Contact Form Submission: " + req.getReason();
+		String text = "Name: " + req.getName() + "\n"
+				+ "Email: " + req.getEmail() + "\n"
+				+ "Phone: " + req.getPhone() + "\n"
+				+ "Reason: " + req.getReason() + "\n"
+				+ "Message: " + req.getMessage();
+		// Send email to info@careridesolutionspa.com
+		emailService.sendContactEmail("info@careridesolutionspa.com", subject, text);
+		return ResponseEntity.created(URI.create("/api/contacts/"+saved.getId())).body(java.util.Map.of("status","sent","id",saved.getId()));
 	}
 
 	@GetMapping("/services")
@@ -44,6 +74,22 @@ public class PublicController {
 		b.setNotes(req.notes());
 		b.setServiceType(st);
 		var saved = bRepo.save(b);
+
+		// Compose booking email
+		String subject = "New Ride Booking: " + req.fullName();
+		StringBuilder text = new StringBuilder();
+		text.append("A new ride booking has been submitted.\n\n");
+		text.append("Full Name: ").append(req.fullName()).append("\n");
+		text.append("Phone: ").append(req.phone()).append("\n");
+		if (req.email() != null && !req.email().isEmpty()) text.append("Email: ").append(req.email()).append("\n");
+		text.append("Pickup Address: ").append(req.pickupAddress()).append("\n");
+		text.append("Drop-off Address: ").append(req.dropoffAddress()).append("\n");
+		text.append("Pickup Time: ").append(req.pickupTime()).append("\n");
+		text.append("Service Type ID: ").append(req.serviceTypeId()).append("\n");
+		if (req.notes() != null && !req.notes().isEmpty()) text.append("Notes: ").append(req.notes()).append("\n");
+
+		emailService.sendContactEmail("info@careridesolutionspa.com", subject, text.toString());
+
 		return ResponseEntity.created(URI.create("/api/bookings/"+saved.getId())).body(saved);
 	}
 }

@@ -10,8 +10,24 @@ spring:
     hibernate:
       ddl-auto: update
     properties:
-      hibernate.show_sql: false
+      hibernate:
+        show_sql: false
   flyway:
     enabled: false
+  mail:
+    host: smtp.mail.us-east-1.awsapps.com
+    port: 465
+    username: info@careridesolutionspa.com
+    password: Transportation1@@
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: true
+          from: info@careridesolutionspa.com
+          ssl:
+            enable: true
+        debug: true
 jwt:
   secret: ${JWT_SECRET:CHANGE_ME}
+

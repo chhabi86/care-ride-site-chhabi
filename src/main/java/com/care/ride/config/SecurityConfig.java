@@ -21,9 +21,10 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/error", "/css/**", "/js/**", "/images/**").permitAll()
-                // allow public access to service list and booking creation API
+                // allow public access to service list and booking/contact creation APIs
                 .requestMatchers(HttpMethod.GET, "/api/services").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/bookings").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/contact").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form.permitAll())
