@@ -39,7 +39,7 @@ public class MailConfig {
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.from", username);
         props.put("mail.smtp.ssl.enable", "true");
-        props.put("mail.debug", "true");
+    // mail.debug can be controlled via application properties (MAIL_DEBUG) or active profile
 
         return mailSender;
     }

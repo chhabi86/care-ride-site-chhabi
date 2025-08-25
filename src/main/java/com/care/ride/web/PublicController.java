@@ -47,9 +47,12 @@ public class PublicController {
 				+ "Phone: " + req.getPhone() + "\n"
 				+ "Reason: " + req.getReason() + "\n"
 				+ "Message: " + req.getMessage();
-		// Send email to info@careridesolutionspa.com
-		emailService.sendContactEmail("info@careridesolutionspa.com", subject, text);
-		return ResponseEntity.created(URI.create("/api/contacts/"+saved.getId())).body(java.util.Map.of("status","sent","id",saved.getId()));
+		// Send email to info@careridesolutionspa.com, but do not fail the request if email sending fails
+		boolean emailOk = emailService.sendContactEmail("info@careridesolutionspa.com", subject, text);
+		if (!emailOk) {
+			System.err.println("Warning: email send failed for contact id=" + saved.getId());
+		}
+		return ResponseEntity.created(URI.create("/api/contacts/"+saved.getId())).body(java.util.Map.of("status","sent","id",saved.getId(), "emailStatus", emailOk));
 	}
 
 	@GetMapping("/services")
@@ -88,8 +91,12 @@ public class PublicController {
 		text.append("Service Type ID: ").append(req.serviceTypeId()).append("\n");
 		if (req.notes() != null && !req.notes().isEmpty()) text.append("Notes: ").append(req.notes()).append("\n");
 
-		emailService.sendContactEmail("info@careridesolutionspa.com", subject, text.toString());
+		boolean emailOk = emailService.sendContactEmail("info@careridesolutionspa.com", subject, text.toString());
+		if (!emailOk) {
+			System.err.println("Warning: email send failed for booking id=" + saved.getId());
+		}
 
-		return ResponseEntity.created(URI.create("/api/bookings/"+saved.getId())).body(saved);
+		// include emailStatus so UI can show helpful message
+		return ResponseEntity.created(URI.create("/api/bookings/"+saved.getId())).body(java.util.Map.of("booking", saved, "emailStatus", emailOk));
 	}
 }
