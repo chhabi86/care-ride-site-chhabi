@@ -1,0 +1,49 @@
+name: Remote Deploy to Ubuntu Server
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]
+
+jobs:
+  remote-deploy:
+    name: Remote deploy (SSH)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run remote deploy script over SSH
+        uses: appleboy/ssh-action@v0.1.9
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_SSH_PORT }}
+          timeout: 600
+          script: |
+            set -euo pipefail
+            echo "Running remote deploy on ${{ secrets.DEPLOY_HOST }} as ${{ secrets.DEPLOY_USER }}"
+            # Ensure /opt exists and is writable by the deploy user
+            if [ ! -d /opt ]; then
+              sudo mkdir -p /opt
+              sudo chown ${{ secrets.DEPLOY_USER }}: /opt || true
+            fi
+
+            if [ ! -d /opt/care-ride-site-chhabi ]; then
+              echo "Cloning repository into /opt/care-ride-site-chhabi"
+              sudo git clone https://github.com/chhabi86/care-ride-site-chhabi.git /opt/care-ride-site-chhabi
+              sudo chown -R ${{ secrets.DEPLOY_USER }}: /opt/care-ride-site-chhabi || true
+            else
+              echo "Updating repository in /opt/care-ride-site-chhabi"
+              cd /opt/care-ride-site-chhabi || exit 1
+              sudo git fetch --all || true
+              sudo git reset --hard origin/main || true
+            fi
+
+            cd /opt/care-ride-site-chhabi || exit 1
+            sudo chmod +x ./deploy.sh || true
+            echo "Starting deploy.sh (may take several minutes)"
+            # Export DOMAIN for non-interactive deploys (set DEPLOY_DOMAIN in repo secrets)
+            if [ -n "${{ secrets.DEPLOY_DOMAIN }}" ]; then
+              echo "Exporting DEPLOY_DOMAIN"
+              export DOMAIN="${{ secrets.DEPLOY_DOMAIN }}"
+            fi
+            sudo ./deploy.sh
