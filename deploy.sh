@@ -45,6 +45,9 @@ if [ -f backend.env.example ] && [ ! -f backend.env ]; then
   echo "Created backend.env from example — edit it with real secrets now (before next deploy)."
 fi
 
+echo "Stopping any existing stack (ignore errors if first run)..."
+docker compose -f docker-compose.yml down --remove-orphans || true
+
 echo "Building and starting containers (local docker-compose.yml)..."
 docker compose -f docker-compose.yml build
 docker compose -f docker-compose.yml up -d
