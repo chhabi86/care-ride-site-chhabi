@@ -2,7 +2,10 @@
 # Stage 1: build with Maven
 FROM maven:3.9.4-eclipse-temurin-17 AS builder
 WORKDIR /build
-COPY pom.xml mvnw .mvn/ ./
+# Copy pom first to leverage layer caching for dependencies
+COPY pom.xml ./
+RUN mvn -B -q dependency:go-offline
+# Now copy sources
 COPY src ./src
 RUN mvn -B -DskipTests package
 
