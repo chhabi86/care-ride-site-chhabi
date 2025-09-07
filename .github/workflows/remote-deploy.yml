@@ -62,6 +62,17 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key -p "${{ secrets.DEPLOY_SSH_PORT }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" <<'REMOTE'
             set -euo pipefail
             echo "Running remote deploy on ${HOSTNAME:-remote}"
+            # If DOMAIN not already set in environment, try to inject from CI secret (baked into heredoc by GitHub before sending)
+            if [ -z "${DOMAIN:-}" ]; then
+              DOMAIN="${{ secrets.DEPLOY_DOMAIN }}"
+            fi
+            if [ -z "${DOMAIN:-}" ]; then
+              echo "WARNING: DOMAIN not provided. Proceeding without TLS (certbot will be skipped if deploy.sh supports SKIP_TLS)." >&2
+              export SKIP_TLS=1
+            else
+              export DOMAIN
+              echo "Using DOMAIN=$DOMAIN"
+            fi
             # Ensure /opt exists and is writable by the deploy user
             if [ ! -d /opt ]; then
               sudo mkdir -p /opt
