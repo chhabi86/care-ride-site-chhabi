@@ -51,22 +51,25 @@ docker compose -f docker-compose.yml down --remove-orphans || true
 echo "Building images (local docker-compose.yml)..."
 docker compose -f docker-compose.yml build
 
-# Decide whether to include pgadmin
-PGADMIN_PROFILE=""
+PGADMIN_COMPOSE_ARGS=""
 PGADMIN_PORT=${PGADMIN_PORT:-5050}
 if [ "${PROFILE_PGADMIN:-0}" = "1" ]; then
-  # user explicitly requested
-  PGADMIN_PROFILE="--profile pgadmin"
-else
-    if ss -ltn | awk '{print $4}' | grep -q ":$PGADMIN_PORT$"; then
-      echo "Port $PGADMIN_PORT already in use; pgadmin will be skipped. Enable later with PROFILE_PGADMIN=1."
+  if ss -ltn | awk '{print $4}' | grep -q ":$PGADMIN_PORT$"; then
+    echo "Requested pgadmin but port $PGADMIN_PORT is busy; skipping pgadmin."
+  else
+    if [ -f docker-compose.pgadmin.yml ]; then
+      PGADMIN_COMPOSE_ARGS="-f docker-compose.pgadmin.yml"
+      echo "Including pgadmin via docker-compose.pgadmin.yml"
     else
-      echo "Port $PGADMIN_PORT free; pgadmin disabled by default (set PROFILE_PGADMIN=1 to enable)."
+      echo "docker-compose.pgadmin.yml missing; cannot enable pgadmin." >&2
     fi
   fi
+else
+  echo "PgAdmin not requested (set PROFILE_PGADMIN=1 to include)."
+fi
 
   echo "Starting containers..."
-  docker compose -f docker-compose.yml up -d $PGADMIN_PROFILE
+  docker compose -f docker-compose.yml $PGADMIN_COMPOSE_ARGS up -d db backend
 
 echo "Configuring nginx for $DOMAIN"
 NGINX_CONF="/etc/nginx/sites-available/care-ride"
