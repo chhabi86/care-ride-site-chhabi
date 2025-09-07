@@ -14,10 +14,12 @@ services:
       - care-net
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
-      - ./backend/backend.env
+      - ./backend.env
     depends_on:
       - db
     ports:
@@ -27,11 +29,26 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ../frontend
       dockerfile: Dockerfile.prod
     restart: unless-stopped
+    depends_on:
+      - backend
     ports:
       - '3000:80'
+    networks:
+      - care-net
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@careride.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    depends_on:
+      - db
+    ports:
+      - '5050:80'
     networks:
       - care-net
 
@@ -41,24 +58,3 @@ volumes:
 networks:
   care-net:
     driver: bridge
-version: '3.8'
-services:
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: careride
-    ports:
-      - "5432:5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
-  pgadmin:
-    image: dpage/pgadmin4
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@careride.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-volumes:
-  db_data:
