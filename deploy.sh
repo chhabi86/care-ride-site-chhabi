@@ -39,16 +39,15 @@ if [ ! -d ".git" ]; then
   git remote add origin https://github.com/your/repo.git || true
 fi
 
-echo "Copy example env to actual env (edit credentials after)."
-if [ -f backend/backend.env.example ] && [ ! -f backend/backend.env ]; then
-  cp backend/backend.env.example backend/backend.env
-  echo "Created backend/backend.env from example — edit it with real secrets now:"
-  echo "  sudo nano backend/backend.env"
+echo "Preparing environment file (backend.env)."
+if [ -f backend.env.example ] && [ ! -f backend.env ]; then
+  cp backend.env.example backend.env
+  echo "Created backend.env from example — edit it with real secrets now (before next deploy)."
 fi
 
-echo "Building and starting containers..."
-docker compose build
-docker compose up -d
+echo "Building and starting containers (local docker-compose.yml)..."
+docker compose -f docker-compose.yml build
+docker compose -f docker-compose.yml up -d
 
 echo "Configuring nginx for $DOMAIN"
 NGINX_CONF="/etc/nginx/sites-available/care-ride"
