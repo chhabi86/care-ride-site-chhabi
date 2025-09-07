@@ -25,8 +25,17 @@ services:
     networks:
       - care-net
 
-  # frontend service temporarily removed (frontend sources not present in this repo)
-  # To enable later, add frontend/ directory here and restore service definition.
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '8081:80'
+    networks:
+      - care-net
 
 
 volumes:

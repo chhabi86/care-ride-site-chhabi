@@ -49,7 +49,8 @@ echo "Stopping any existing stack (ignore errors if first run)..."
 docker compose -f docker-compose.yml down --remove-orphans || true
 
 echo "Building images (local docker-compose.yml)..."
-docker compose -f docker-compose.yml build
+docker compose -f docker-compose.yml build backend
+docker compose -f docker-compose.yml build frontend || echo "Frontend build failed (check Node/npm)."
 
 PGADMIN_COMPOSE_ARGS=""
 PGADMIN_PORT=${PGADMIN_PORT:-5050}
@@ -69,7 +70,7 @@ else
 fi
 
   echo "Starting containers..."
-  docker compose -f docker-compose.yml $PGADMIN_COMPOSE_ARGS up -d db backend
+  docker compose -f docker-compose.yml $PGADMIN_COMPOSE_ARGS up -d db backend frontend
 
 echo "Configuring nginx for $DOMAIN"
 NGINX_CONF="/etc/nginx/sites-available/care-ride"
@@ -78,7 +79,9 @@ if [ -f nginx/care-ride.conf ]; then
 else
   echo "nginx/care-ride.conf not found; writing minimal default." >&2
   cat > $NGINX_CONF <<EOF
-server {\n  listen 80;\n  server_name $DOMAIN www.$DOMAIN;\n  location /api/ { proxy_pass http://127.0.0.1:8080/; }\n  location / { return 200 'Backend up'; add_header Content-Type text/plain; }\n}\n
+upstream backend_api { server 127.0.0.1:8080; }
+upstream frontend_app { server 127.0.0.1:8081; }
+server {\n  listen 80;\n  server_name $DOMAIN www.$DOMAIN;\n  location /api/ { proxy_pass http://backend_api/; }\n  location / { proxy_pass http://frontend_app/; }\n}\n
 EOF
 fi
 sed -i "s/server_name example.com www.example.com;/server_name $DOMAIN www.$DOMAIN;/" $NGINX_CONF || true
