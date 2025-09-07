@@ -86,17 +86,17 @@ jobs:
             else
               echo "Updating repository in /opt/care-ride-site-chhabi"
               cd /opt/care-ride-site-chhabi || exit 1
-              sudo git fetch --all || true
+              sudo git fetch origin main --prune || true
               sudo git reset --hard origin/main || true
             fi
 
             cd /opt/care-ride-site-chhabi || exit 1
             sudo chmod +x ./deploy.sh || true
-            echo "Starting deploy.sh (may take several minutes)"
-            # Export DOMAIN for non-interactive deploys (set DEPLOY_DOMAIN in repo secrets)
-            if [ -n "${{ secrets.DEPLOY_DOMAIN }}" ]; then
-              echo "Exporting DEPLOY_DOMAIN"
-              export DOMAIN="${{ secrets.DEPLOY_DOMAIN }}"
+            echo "Starting deploy.sh (may take several minutes) with DOMAIN='${DOMAIN:-}'"
+            # Run deploy preserving DOMAIN env (avoid sudo environment stripping)
+            if [ "$(id -u)" = "0" ]; then
+              DOMAIN="$DOMAIN" ./deploy.sh
+            else
+              DOMAIN="$DOMAIN" sudo -E ./deploy.sh
             fi
-            sudo ./deploy.sh
           REMOTE
