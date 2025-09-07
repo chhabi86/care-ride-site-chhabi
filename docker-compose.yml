@@ -27,17 +27,8 @@ services:
     networks:
       - care-net
 
-  frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile.prod
-    restart: unless-stopped
-    depends_on:
-      - backend
-    ports:
-      - '3000:80'
-    networks:
-      - care-net
+  # frontend service temporarily removed (frontend sources not present in this repo)
+  # To enable later, add frontend/ directory here and restore service definition.
 
   pgadmin:
     image: dpage/pgadmin4
