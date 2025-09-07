@@ -14,20 +14,44 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Prefer base64 secret if provided (avoids newline mangling); fallback to raw key secret
+          used_fallback=0
           if [ -n "${{ secrets.DEPLOY_SSH_KEY_B64 }}" ]; then
             echo "Decoding base64 private key"
-            echo "${{ secrets.DEPLOY_SSH_KEY_B64 }}" | base64 -d > /tmp/deploy_key
+            if ! echo "${{ secrets.DEPLOY_SSH_KEY_B64 }}" | base64 -d > /tmp/deploy_key 2>/dev/null; then
+              echo "Base64 decode failed; trying raw key secret if present" >&2
+              if [ -n "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
+                printf "%s\n" "${{ secrets.DEPLOY_SSH_KEY }}" > /tmp/deploy_key
+                used_fallback=1
+              else
+                echo "No raw secret available to fallback" >&2
+              fi
+            fi
           else
             printf "%s\n" "${{ secrets.DEPLOY_SSH_KEY }}" > /tmp/deploy_key
+            used_fallback=1
           fi
-          # Strip any CR characters (Windows copy issues)
-          sed -i 's/\r$//' /tmp/deploy_key
-          chmod 600 /tmp/deploy_key
-          # Validate key format without printing it
+          sed -i 's/\r$//' /tmp/deploy_key || true
+          chmod 600 /tmp/deploy_key || true
+          size=$(wc -c < /tmp/deploy_key 2>/dev/null || echo 0)
+          echo "Written key size: ${size} bytes (fallback=${used_fallback})"
+          if ! grep -q 'BEGIN OPENSSH PRIVATE KEY' /tmp/deploy_key; then
+            echo "Warning: Missing BEGIN header" >&2
+          fi
+          if ! grep -q 'END OPENSSH PRIVATE KEY' /tmp/deploy_key; then
+            echo "Warning: Missing END footer" >&2
+          fi
           if ! ssh-keygen -y -f /tmp/deploy_key >/dev/null 2>&1; then
-            echo "SSH key invalid or unreadable (failing early)" >&2
-            exit 1
+            echo "Initial validation failed. Attempting newline repair..." >&2
+            printf '\n' >> /tmp/deploy_key
+            if ssh-keygen -y -f /tmp/deploy_key >/dev/null 2>&1; then
+              echo "Validation succeeded after newline repair" >&2
+            else
+              echo "SSH key invalid or unreadable" >&2
+              echo "Debug: final size $(wc -c < /tmp/deploy_key) bytes, sha256 $(sha256sum /tmp/deploy_key | cut -c1-16)" >&2
+              exit 1
+            fi
+          else
+            echo "SSH key loaded OK (sha256 $(sha256sum /tmp/deploy_key | cut -c1-12))"
           fi
 
       - name: Run remote deploy script over SSH (manual)
