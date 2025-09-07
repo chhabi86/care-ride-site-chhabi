@@ -13,9 +13,22 @@ jobs:
       - name: Write SSH key to temporary file
         shell: bash
         run: |
-          # ensure we don't print the key
-          printf "%s\n" "${{ secrets.DEPLOY_SSH_KEY }}" > /tmp/deploy_key
+          set -euo pipefail
+          # Prefer base64 secret if provided (avoids newline mangling); fallback to raw key secret
+          if [ -n "${{ secrets.DEPLOY_SSH_KEY_B64 }}" ]; then
+            echo "Decoding base64 private key"
+            echo "${{ secrets.DEPLOY_SSH_KEY_B64 }}" | base64 -d > /tmp/deploy_key
+          else
+            printf "%s\n" "${{ secrets.DEPLOY_SSH_KEY }}" > /tmp/deploy_key
+          fi
+          # Strip any CR characters (Windows copy issues)
+          sed -i 's/\r$//' /tmp/deploy_key
           chmod 600 /tmp/deploy_key
+          # Validate key format without printing it
+          if ! ssh-keygen -y -f /tmp/deploy_key >/dev/null 2>&1; then
+            echo "SSH key invalid or unreadable (failing early)" >&2
+            exit 1
+          fi
 
       - name: Run remote deploy script over SSH (manual)
         shell: bash
