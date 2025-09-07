@@ -73,8 +73,15 @@ fi
 
 echo "Configuring nginx for $DOMAIN"
 NGINX_CONF="/etc/nginx/sites-available/care-ride"
-cp nginx/care-ride.conf $NGINX_CONF
-sed -i "s/server_name example.com www.example.com;/server_name $DOMAIN www.$DOMAIN;/" $NGINX_CONF
+if [ -f nginx/care-ride.conf ]; then
+  cp nginx/care-ride.conf $NGINX_CONF
+else
+  echo "nginx/care-ride.conf not found; writing minimal default." >&2
+  cat > $NGINX_CONF <<EOF
+server {\n  listen 80;\n  server_name $DOMAIN www.$DOMAIN;\n  location /api/ { proxy_pass http://127.0.0.1:8080/; }\n  location / { return 200 'Backend up'; add_header Content-Type text/plain; }\n}\n
+EOF
+fi
+sed -i "s/server_name example.com www.example.com;/server_name $DOMAIN www.$DOMAIN;/" $NGINX_CONF || true
 ln -sf $NGINX_CONF /etc/nginx/sites-enabled/care-ride
 nginx -t && systemctl reload nginx
 
