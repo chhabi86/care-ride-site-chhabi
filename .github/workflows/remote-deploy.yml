@@ -12,12 +12,14 @@ jobs:
     steps:
       - name: Run remote deploy script over SSH
         uses: appleboy/ssh-action@v0.1.9
+        env:
+          INPUT_TIMEOUT: '600s'
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_SSH_PORT }}
-          timeout: 600
+          timeout: '600s'
           script: |
             set -euo pipefail
             echo "Running remote deploy on ${{ secrets.DEPLOY_HOST }} as ${{ secrets.DEPLOY_USER }}"
