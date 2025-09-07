@@ -48,9 +48,25 @@ fi
 echo "Stopping any existing stack (ignore errors if first run)..."
 docker compose -f docker-compose.yml down --remove-orphans || true
 
-echo "Building and starting containers (local docker-compose.yml)..."
+echo "Building images (local docker-compose.yml)..."
 docker compose -f docker-compose.yml build
-docker compose -f docker-compose.yml up -d
+
+# Decide whether to include pgadmin
+PGADMIN_PROFILE=""
+PGADMIN_PORT=${PGADMIN_PORT:-5050}
+if [ "${PROFILE_PGADMIN:-0}" = "1" ]; then
+  # user explicitly requested
+  PGADMIN_PROFILE="--profile pgadmin"
+else
+    if ss -ltn | awk '{print $4}' | grep -q ":$PGADMIN_PORT$"; then
+      echo "Port $PGADMIN_PORT already in use; pgadmin will be skipped. Enable later with PROFILE_PGADMIN=1."
+    else
+      echo "Port $PGADMIN_PORT free; pgadmin disabled by default (set PROFILE_PGADMIN=1 to enable)."
+    fi
+  fi
+
+  echo "Starting containers..."
+  docker compose -f docker-compose.yml up -d $PGADMIN_PROFILE
 
 echo "Configuring nginx for $DOMAIN"
 NGINX_CONF="/etc/nginx/sites-available/care-ride"
