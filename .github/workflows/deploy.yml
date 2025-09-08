@@ -57,7 +57,7 @@ jobs:
                                -o StrictHostKeyChecking=no \
                                -o BatchMode=yes \
                                -i /tmp/deploy_key \
-                               ubuntu@${{ secrets.DEPLOY_HOST }} \
+                               ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
                                "$cmd"; then
                 echo "✅ SSH command succeeded on attempt $i"
                 return 0
@@ -118,7 +118,7 @@ jobs:
           }
           
           echo "📤 Uploading Docker image..."
-          scp_retry "care-ride-backend.tar" "ubuntu@${{ secrets.DEPLOY_HOST }}:/tmp/"
+          scp_retry "care-ride-backend.tar" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/"
 
       - name: Deploy backend to server
         run: |
