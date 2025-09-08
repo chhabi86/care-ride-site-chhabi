@@ -1,0 +1,93 @@
+# Backend CI/CD Workflow (for care-ride-site-chhabi repository)
+name: Backend Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout backend code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run tests
+        run: mvn test
+
+      - name: Build JAR
+        run: mvn clean package -DskipTests
+
+      - name: Build Docker image
+        run: |
+          docker build -t care-ride-backend .
+          docker save care-ride-backend > care-ride-backend.tar
+
+      - name: Deploy to server
+        run: |
+          # Setup SSH key
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          
+          # Upload Docker image
+          scp -o StrictHostKeyChecking=no \
+              -i /tmp/deploy_key \
+              care-ride-backend.tar \
+              ubuntu@${{ secrets.DEPLOY_HOST }}:/tmp/
+          
+          # Deploy backend
+          ssh -o StrictHostKeyChecking=no \
+              -i /tmp/deploy_key \
+              ubuntu@${{ secrets.DEPLOY_HOST }} \
+              "DOMAIN='${{ secrets.DEPLOY_DOMAIN }}' bash -s" <<'DEPLOY'
+          
+          set -e
+          
+          echo "🚀 Deploying backend..."
+          
+          # Stop existing backend containers
+          docker stop $(docker ps -q --filter "name=backend") 2>/dev/null || true
+          docker rm $(docker ps -aq --filter "name=backend") 2>/dev/null || true
+          
+          # Load new image
+          docker load < /tmp/care-ride-backend.tar
+          
+          # Start database if not running
+          if ! docker ps | grep -q postgres; then
+            docker run -d \
+              --name care-ride-db \
+              --network care-ride-net \
+              -e POSTGRES_DB=careride \
+              -e POSTGRES_USER=careride \
+              -e POSTGRES_PASSWORD=careride123 \
+              -p 5432:5432 \
+              postgres:15
+          fi
+          
+          # Start backend
+          docker run -d \
+            --name care-ride-backend \
+            --network care-ride-net \
+            -p 8080:8080 \
+            -e SPRING_DATASOURCE_URL=jdbc:postgresql://care-ride-db:5432/careride \
+            -e SPRING_DATASOURCE_USERNAME=careride \
+            -e SPRING_DATASOURCE_PASSWORD=careride123 \
+            care-ride-backend
+          
+          echo "✅ Backend deployment completed"
+          
+          DEPLOY
+
+      - name: Verify backend deployment
+        run: |
+          sleep 30
+          curl -f http://${{ secrets.DEPLOY_HOST }}:8080/actuator/health || exit 1
