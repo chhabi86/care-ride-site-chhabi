@@ -53,3 +53,5 @@ curl http://localhost/api/services
 
 # SSH key update test - Mon Sep  8 13:44:56 EDT 2025
 # Backend deploy test after SSH fix Mon Sep  8 15:56:46 EDT 2025
+# Server cleanup instructions
+Run the server-port-cleanup.sh script in DigitalOcean console to fix port conflicts
